@@ -1,0 +1,7 @@
+# Autograder core dependencies
+nbconvert
+
+# Student-accessible libraries
+numpy
+pandas
+scipy

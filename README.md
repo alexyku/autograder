@@ -5,12 +5,12 @@ A lightweight, script-based system for automatically grading iPython/Jupyter not
 ---
 ## How It Works
 
-The main `autograder.py` script iterates through each notebook in the `submissions/` directory and performs the following steps for each:
-1.  **Parses Email:** Reads the student's email address from the first markdown cell.
-2.  **Converts Notebook:** Transforms the `.ipynb` file into a temporary `student_code.py` script.
-3.  **Tests in Isolation:** Spawns a separate subprocess to run the unit tests from `test_solutions.py` against the student's code. This ensures that each student's submission is graded in a clean, isolated environment, preventing errors or state from one submission from affecting another.
-4.  **Records Result:** Captures the test results (e.g., "3/3 passed") from the subprocess.
-5.  **Generates Report:** After processing all notebooks, it compiles the results into a `grades.csv` file.
+1.  **Parses Email:** Reads the student's email address from the first markdown cell of the notebook.
+2.  **Spawns Secure Container:** Launches a new, isolated **Docker container** for the submission. This acts as a secure sandbox.
+3.  **Converts and Tests:** Inside the container, the student's notebook is converted to a Python script and graded against the unit tests from `test_solutions.py`.
+4.  **Enforces Timeout:** A strict **timeout limit** is enforced on the container. If the student's code runs for too long (e.g., an infinite loop), the process is automatically terminated.
+5.  **Records Result:** The main script captures the test results from the container and adds the score to a final report.
+6.  **Generates Report:** After all submissions are processed, it compiles the results into a `grades.csv` file.
 
 ---
 ## Directory Structure
@@ -19,7 +19,9 @@ Your project must be organized with the following file structure for the scripts
 
 ```
 autograder/
-├── autograder.py         # The main script to run
+├── Dockerfile            # The recipe for the secure sandbox
+├── requirements.txt      # Python package dependencies
+├── autograder.py         # The main script to run for batch grading
 ├── test_solutions.py     # Your hidden unit tests
 ├── run_single_test.py    # Helper script for isolated testing
 ├── README.md             # This file
@@ -31,24 +33,49 @@ autograder/
 ---
 ## Prerequisites
 
-The only external library required is `nbconvert`.
+The primary prerequisite is **Docker**. The necessary Python packages (like `nbconvert`) are automatically installed inside the Docker environment, so you do not need to install them on your local machine.
 
-```bash
-pip install nbconvert
-```
+* **Docker:** You must have Docker installed and the Docker daemon running. You can download it from the official website: [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
 ---
-## Usage
+## Setup & Usage
 
-1.  **Write Tests:** Define the grading logic and assertions in `test_solutions.py`. Your tests should be written to test functions within a module named `student_code` (e.g., `student_code.my_function()`).
+Follow these steps to set up and run the autograder.
 
-2.  **Add Submissions:** Place all student `.ipynb` files into the `submissions/` folder.
+### Step 1: Configure Dependencies
+Edit the `requirements.txt` file to list all the Python libraries that students are allowed to use (e.g., `numpy`, `pandas`, `scikit-learn`). The `nbconvert` package, which the autograder needs, should also be in this file.
 
-3.  **Run the Autograder:** Execute the main script from your terminal.
-    ```bash
-    python autograder.py
-    ```
-4.  **Check Results:** A `grades.csv` file will be created in the root directory with the email, score, and filename for each submission.
+### Step 2: Write Tests
+Define the grading logic and assertions in `test_solutions.py`. Your tests should be written to test functions within a module named `student_code` (e.g., `student_code.my_function()`).
+
+### Step 3: Build the Docker Image (One-Time Setup)
+Before you can run the grader, you need to build the Docker image from the `Dockerfile`. This command packages all the necessary tools into a reusable sandbox environment.
+
+**Run this command once from your terminal in the project directory:**
+```bash
+docker build -t my-autograder-image .
+```
+
+### Step 4: Add Student Submissions
+Place all student `.ipynb` files into the `submissions/` folder.
+
+### Step 5: Run the Autograder
+You can either grade all submissions in a batch or grade a single file for detailed debugging.
+
+**Option A: Batch Grade All Submissions**
+To grade every notebook in the `submissions` folder, run the main script:
+```bash
+python autograder.py
+```
+
+**Option B: Grade a Single Submission (for Debugging)**
+To get a detailed, real-time report for a specific student, run `run_single_test.py` and pass the path to their notebook:
+```bash
+python run_single_test.py submissions/student1.ipynb
+```
+
+### Step 6: Check Results
+After running the batch grader, a `grades.csv` file will be created in the root directory with the email, score, and filename for each submission.
 
 ---
 ## Instructions for Students
